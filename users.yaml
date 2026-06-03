@@ -1,0 +1,38 @@
+# Static access-control map: which user (by email) may touch which project + stage.
+#
+# Shape:
+#   users:
+#     <email>:
+#       <project-id>:
+#         - <stage-name>
+#         - <stage-name>
+#
+# Rules enforced by the access-validation Lambda (functions/lib/access.ts):
+#   * email match is case-insensitive
+#   * a user may only request data keys / presigned URLs for a (project, stage)
+#     pair that appears under their entry
+#   * stage names MUST also exist in infra `stages` (sst.config.ts) — otherwise no
+#     bucket-policy role exists to grant the access, so the request fails closed.
+#
+# The set of valid stage names is defined ONCE in infra/sst.config.ts (`const stages`).
+# Keep them in sync. Default stages: dev, staging, prod, personal.
+
+users:
+  alice@example.com:
+    laptop:
+      - personal
+    webapp:
+      - dev
+      - staging
+
+  bob@example.com:
+    webapp:
+      - dev
+      - staging
+      - prod          # bob is the only one allowed into prod
+    api:
+      - dev
+
+  ci@example.com:     # a service identity, e.g. for restore-on-bootstrap automation
+    webapp:
+      - prod

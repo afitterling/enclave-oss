@@ -1,0 +1,28 @@
+{
+  "name": "enclave-envoy-infra",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "deploy": "sst deploy",
+    "dev": "sst dev",
+    "remove": "sst remove"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.654.0",
+    "@aws-sdk/client-kms": "^3.654.0",
+    "@aws-sdk/client-s3": "^3.654.0",
+    "@aws-sdk/client-ses": "^3.654.0",
+    "@aws-sdk/client-sts": "^3.654.0",
+    "@aws-sdk/lib-dynamodb": "^3.654.0",
+    "@aws-sdk/s3-request-presigner": "^3.654.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.7.0",
+    "sst": "^3.3.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,15 @@
+# infra
+infra/node_modules/
+infra/.sst/
+infra/sst-env.d.ts
+
+# python
+cli/build/
+cli/*.egg-info/
+cli/**/__pycache__/
+.venv/
+
+# local config / secrets — never commit
+.env
+.env.*
+**/.enclave/
