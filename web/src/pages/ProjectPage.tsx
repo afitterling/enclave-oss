@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../lib/api";
 import { deleteFile } from "../lib/crypto";
+import { flags } from "../lib/flags";
 import { useAuth } from "../state/auth";
 import FileList from "../components/FileList";
 import FileViewer from "../components/FileViewer";
@@ -94,7 +95,12 @@ export default function ProjectPage() {
                 />
               )}
             </div>
-            <FileList files={files} selected={viewing} onView={setViewing} onDelete={(f) => void remove(f)} />
+            <FileList
+              files={files}
+              selected={viewing}
+              onView={setViewing}
+              onDelete={flags.fileDelete ? (f) => void remove(f) : undefined}
+            />
           </div>
 
           {viewing && stage && (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../lib/api";
+import { flags } from "../lib/flags";
 import { useAuth } from "../state/auth";
 
 const ALL_STAGES = ["dev", "staging", "prod", "personal"];
@@ -151,6 +152,7 @@ export default function ProjectSettingsPage() {
             )}
           </div>
 
+          {flags.teams && (
           <div className="panel">
             <div className="panel-head">
               <h2>Team grants</h2>
@@ -209,6 +211,7 @@ export default function ProjectSettingsPage() {
               </div>
             )}
           </div>
+          )}
         </>
       )}
     </div>

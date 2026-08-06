@@ -7,6 +7,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { canAccess } from "../lib/access.js";
+import { featureEnabled } from "../lib/features.js";
 import { s3ForStage } from "../lib/assume.js";
 import { requireAuth } from "../lib/jwt.js";
 import { ok, badRequest, unauthorized, forbidden, parseBody } from "../lib/response.js";
@@ -74,6 +75,7 @@ export async function handler(event: APIGatewayProxyEventV2) {
   }
 
   if (op === "delete") {
+    if (!featureEnabled("fileDelete")) return forbidden("file deletion is not enabled");
     const url = await getSignedUrl(s3, new DeleteObjectCommand({ Bucket: bucket, Key }), {
       expiresIn: PRESIGN_TTL,
     });

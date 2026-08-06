@@ -724,6 +724,52 @@ pre.code {
   color: var(--ink);
 }
 
+.ed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.ed-card {
+  border: 1px solid var(--line);
+  background: var(--bg-raise);
+  padding: 22px;
+}
+
+.ed-card.current {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 1px rgba(232, 163, 61, 0.12), 0 0 24px rgba(232, 163, 61, 0.05);
+}
+
+.ed-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.ed-head h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.ed-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  color: var(--ink-dim);
+  font-size: 14px;
+}
+
+.ed-card li::before {
+  content: "▸ ";
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
 .land-foot {
   border-top: 1px solid var(--line);
   padding: 26px 0 0;

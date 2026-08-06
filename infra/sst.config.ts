@@ -24,6 +24,23 @@ const stages = ["dev", "staging", "prod", "personal"];
 // projects). Everyone else must be invited to a project or team first.
 const adminEmails = ["info@sp33c.tech"];
 
+// Edition: "opensource" is the core (projects, encrypted upload/view, CLI);
+// "enterprise" adds team management. Editions are presets over the feature
+// toggles below — individual flags can still be overridden after the spread.
+const edition: "opensource" | "enterprise" = "enterprise";
+
+const editionFeatures = {
+  opensource: { landing: true, teams: false, fileDelete: true },
+  enterprise: { landing: true, teams: true, fileDelete: true },
+} as const;
+
+// Feature toggles. Enforced in the Lambdas (functions/lib/features.ts) and
+// baked into the web build — flip here, `sst deploy` to apply.
+const features: Record<string, boolean> = {
+  ...editionFeatures[edition],
+  // per-flag overrides go here, e.g. `fileDelete: false`
+};
+
 export default $config({
   app(input) {
     return {
@@ -157,6 +174,8 @@ export default $config({
       JWT_SIGNING_KEY: jwtKey.value,
       STAGES: JSON.stringify(stages),
       ACCESS_TABLE: accessTable.name,
+      FEATURES: JSON.stringify(features),
+      EDITION: edition,
     };
 
     // Read-only access-map lookups (canAccess / permissionsFor / isKnownUser).
@@ -244,7 +263,11 @@ export default $config({
     const site = new sst.aws.StaticSite("Web", {
       path: "../web",
       build: { command: "npm run build", output: "dist" },
-      environment: { VITE_API_URL: api.url },
+      environment: {
+        VITE_API_URL: api.url,
+        VITE_FEATURES: JSON.stringify(features),
+        VITE_EDITION: edition,
+      },
     });
 
     return {

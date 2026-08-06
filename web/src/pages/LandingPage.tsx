@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { edition } from "../lib/flags";
 
 const CLI_QUICKSTART = `# install the CLI
 pip install -e cli/
@@ -130,6 +131,45 @@ export default function LandingPage() {
               JWT-authenticated JSON endpoints for data keys and presigned S3 URLs. Bring
               Go, Rust, or a shell script — the envelope spec is ~40 lines.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- editions ------------------------------------------------ */}
+      <section className="land-section" id="editions">
+        <h2>Editions</h2>
+        <p className="sub">
+          Open-core: the encrypted vault is free and open source, forever. Team management
+          ships in the enterprise edition.
+        </p>
+        <div className="ed-grid">
+          <div className={`ed-card ${edition === "opensource" ? "current" : ""}`}>
+            <div className="ed-head">
+              <h3>Open Source</h3>
+              <span className="tag">MIT-style · self-host</span>
+              {edition === "opensource" && <span className="tag accent">this deployment</span>}
+            </div>
+            <ul>
+              <li>End-to-end encrypted projects &amp; stages</li>
+              <li>Web upload + masked KEY=VALUE viewer</li>
+              <li>Python CLI, byte-compatible envelopes</li>
+              <li>Invite-only email OTP login</li>
+              <li>Your AWS account: S3 + KMS + Lambda</li>
+            </ul>
+          </div>
+          <div className={`ed-card ${edition === "enterprise" ? "current" : ""}`}>
+            <div className="ed-head">
+              <h3>Enterprise</h3>
+              <span className="tag">private repo</span>
+              {edition === "enterprise" && <span className="tag accent">this deployment</span>}
+            </div>
+            <ul>
+              <li>Everything in Open Source</li>
+              <li>Teams: named groups of people</li>
+              <li>One grant → whole-team stage access</li>
+              <li>Owner-managed membership &amp; revocation</li>
+              <li>Feature toggles per deployment</li>
+            </ul>
           </div>
         </div>
       </section>

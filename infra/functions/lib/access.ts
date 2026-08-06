@@ -1,5 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { featureEnabled } from "./features.js";
 
 /**
  * Dynamic access map backed by DynamoDB (ACCESS_TABLE), replacing the old
@@ -77,6 +78,14 @@ export async function permissionsFor(email: string): Promise<Record<string, stri
     merged.set(project, set);
   };
 
+  const finish = () => {
+    const out: Record<string, string[]> = {};
+    for (const [project, set] of merged) {
+      out[project] = stages.filter((s) => set.has(s));
+    }
+    return out;
+  };
+
   const mine = await ddb.send(
     new QueryCommand({
       TableName: table(),
@@ -97,7 +106,9 @@ export async function permissionsFor(email: string): Promise<Record<string, stri
     }
   }
 
-  // Grants held by each team the user belongs to.
+  // Grants held by each team the user belongs to (enterprise feature —
+  // disabled teams grant nothing, even if grant items exist in the table).
+  if (!featureEnabled("teams")) return finish();
   for (const team of teamIds) {
     const grants = await ddb.send(
       new QueryCommand({
@@ -115,11 +126,7 @@ export async function permissionsFor(email: string): Promise<Record<string, stri
     }
   }
 
-  const out: Record<string, string[]> = {};
-  for (const [project, set] of merged) {
-    out[project] = stages.filter((s) => set.has(s));
-  }
-  return out;
+  return finish();
 }
 
 /**
@@ -145,8 +152,9 @@ export async function canAccess(email: string, project: string, stage: string): 
     if (Array.isArray(member.stages) && member.stages.includes(stage)) return true;
   }
 
-  // Team path: grants on this project whose stages include `stage`, where the
-  // user is a member of the granted team.
+  // Team path (enterprise feature): grants on this project whose stages
+  // include `stage`, where the user is a member of the granted team.
+  if (!featureEnabled("teams")) return false;
   const grants = await ddb.send(
     new QueryCommand({
       TableName: table(),

@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { normalizeEmail, validStages } from "../lib/access.js";
+import { featureEnabled } from "../lib/features.js";
 import { requireAuth } from "../lib/jwt.js";
 import { ok, badRequest, unauthorized, forbidden, json, parseBody } from "../lib/response.js";
 
@@ -369,12 +370,16 @@ export async function handler(event: APIGatewayProxyEventV2) {
     if (method !== "POST") return badRequest("unknown route");
     if (sub === "members" && !action) return upsertProjectMember(email, id, body);
     if (sub === "members" && action === "remove") return removeProjectMember(email, id, body);
-    if (sub === "teams" && !action) return upsertTeamGrant(email, id, body);
-    if (sub === "teams" && action === "remove") return removeTeamGrant(email, id, body);
+    if (sub === "teams") {
+      if (!featureEnabled("teams")) return notFound("teams are not enabled");
+      if (!action) return upsertTeamGrant(email, id, body);
+      if (action === "remove") return removeTeamGrant(email, id, body);
+    }
     return badRequest("unknown route");
   }
 
   if (root === "teams") {
+    if (!featureEnabled("teams")) return notFound("teams are not enabled");
     if (!id) return method === "GET" ? listTeams(email) : createTeam(email, body);
     if (!sub) return method === "GET" ? teamDetail(email, id) : badRequest("unknown route");
     if (method !== "POST") return badRequest("unknown route");

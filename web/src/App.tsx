@@ -1,4 +1,5 @@
 import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { flags } from "./lib/flags";
 import { useAuth } from "./state/auth";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -14,7 +15,7 @@ export default function App() {
   if (!session) {
     return (
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={flags.landing ? <LandingPage /> : <LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -31,9 +32,11 @@ export default function App() {
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
             Projects
           </NavLink>
-          <NavLink to="/teams" className={({ isActive }) => (isActive ? "active" : "")}>
-            Teams
-          </NavLink>
+          {flags.teams && (
+            <NavLink to="/teams" className={({ isActive }) => (isActive ? "active" : "")}>
+              Teams
+            </NavLink>
+          )}
         </nav>
         <div className="who">
           <span>{session.email}</span>
@@ -46,8 +49,8 @@ export default function App() {
         <Route path="/" element={<ProjectsPage />} />
         <Route path="/projects/:project" element={<ProjectPage />} />
         <Route path="/projects/:project/settings" element={<ProjectSettingsPage />} />
-        <Route path="/teams" element={<TeamsPage />} />
-        <Route path="/teams/:team" element={<TeamPage />} />
+        {flags.teams && <Route path="/teams" element={<TeamsPage />} />}
+        {flags.teams && <Route path="/teams/:team" element={<TeamPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

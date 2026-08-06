@@ -2,7 +2,8 @@ interface Props {
   files: string[] | null;
   selected: string | null;
   onView: (file: string) => void;
-  onDelete: (file: string) => void;
+  /** Omitted when the fileDelete feature is disabled. */
+  onDelete?: (file: string) => void;
 }
 
 export default function FileList({ files, selected, onView, onDelete }: Props) {
@@ -28,9 +29,11 @@ export default function FileList({ files, selected, onView, onDelete }: Props) {
           <button className="btn quiet" onClick={() => onView(f)}>
             view
           </button>
-          <button className="btn quiet danger" onClick={() => onDelete(f)}>
-            delete
-          </button>
+          {onDelete && (
+            <button className="btn quiet danger" onClick={() => onDelete(f)}>
+              delete
+            </button>
+          )}
         </li>
       ))}
     </ul>
