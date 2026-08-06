@@ -224,12 +224,56 @@ export default function LandingPage() {
         </ul>
       </section>
 
+      {/* ---- imprint ------------------------------------------------- */}
+      <section className="land-section imprint" id="imprint">
+        <h2>Imprint</h2>
+        <div className="imprint-grid">
+          <div>
+            <p>
+              Alex Fitterling
+              <br />
+              Wöhrder Kreuzgasse 8
+              <br />
+              90489 Nürnberg, Germany
+            </p>
+            <p>
+              <a href="mailto:info@sp33c.tech">info@sp33c.tech</a>
+              <br />
+              <a href="https://sp33c.tech" target="_blank" rel="noreferrer">
+                sp33c.tech
+              </a>
+            </p>
+          </div>
+          <div>
+            <p>
+              VAT ID (USt-IdNr.): DE268459719-00001
+              <br />
+              Responsible for content pursuant to §&nbsp;18&nbsp;(2)&nbsp;MStV: Alex Fitterling
+            </p>
+            <p>
+              Full legal notice &amp; privacy policy:{" "}
+              <a href="https://sp33c.tech/impressum.html" target="_blank" rel="noreferrer">
+                Impressum
+              </a>{" "}
+              ·{" "}
+              <a href="https://sp33c.tech/datenschutz.html" target="_blank" rel="noreferrer">
+                Datenschutz
+              </a>
+              <br />
+              The German versions are legally authoritative.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <footer className="land-foot">
         <span className="brand">
           enclave<b>-envoy</b>
         </span>
         <span>encrypted with AES-256-GCM · keys by AWS KMS · invite-only</span>
-        <Link to="/login">sign in →</Link>
+        <span>
+          <a href="#imprint">imprint</a> · <Link to="/login">sign in →</Link>
+        </span>
       </footer>
     </div>
   );

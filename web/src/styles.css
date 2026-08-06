@@ -770,6 +770,33 @@ pre.code {
   font-family: var(--mono);
 }
 
+.imprint {
+  font-size: 13.5px;
+}
+
+.imprint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  line-height: 1.7;
+}
+
+.imprint-grid p {
+  margin: 0 0 14px;
+}
+
+.imprint-grid a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-dim);
+}
+
+.imprint-grid a:hover {
+  color: var(--accent);
+}
+
 .land-foot {
   border-top: 1px solid var(--line);
   padding: 26px 0 0;
