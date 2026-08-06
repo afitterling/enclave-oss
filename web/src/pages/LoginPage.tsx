@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../state/auth";
 
 export default function LoginPage() {
@@ -39,7 +40,11 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="login">
-        <p className="kicker">encrypted dotfile vault</p>
+        <p className="kicker">
+          <Link to="/" style={{ color: "inherit", textDecoration: "none" }}>
+            ← encrypted dotfile vault
+          </Link>
+        </p>
         <p className="brand" style={{ marginTop: 0 }}>
           enclave<b>-envoy</b>
         </p>

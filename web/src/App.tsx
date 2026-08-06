@@ -1,5 +1,6 @@
 import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./state/auth";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectPage from "./pages/ProjectPage";
@@ -10,7 +11,15 @@ import TeamPage from "./pages/TeamPage";
 export default function App() {
   const { session, logout } = useAuth();
 
-  if (!session) return <LoginPage />;
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="shell">
