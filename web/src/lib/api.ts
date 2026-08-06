@@ -97,7 +97,6 @@ export interface ProjectDetail {
   project: string;
   owner: string;
   members: { email: string; role: string; stages: string[] }[];
-  teams: { team: string; stages: string[] }[];
 }
 
 export const listProjects = () => request<{ projects: ProjectSummary[] }>("/admin/projects");
@@ -108,30 +107,3 @@ export const addProjectMember = (project: string, email: string, stages: string[
   request<{ ok: true }>(`/admin/projects/${project}/members`, { body: { email, stages } });
 export const removeProjectMember = (project: string, email: string) =>
   request<{ ok: true }>(`/admin/projects/${project}/members/remove`, { body: { email } });
-export const grantTeam = (project: string, team: string, stages: string[]) =>
-  request<{ ok: true }>(`/admin/projects/${project}/teams`, { body: { team, stages } });
-export const revokeTeam = (project: string, team: string) =>
-  request<{ ok: true }>(`/admin/projects/${project}/teams/remove`, { body: { team } });
-
-// ---- admin: teams ----------------------------------------------------------
-
-export interface TeamSummary {
-  team: string;
-  role: "owner" | "member";
-  owner: string | null;
-}
-
-export interface TeamDetail {
-  team: string;
-  owner: string;
-  members: { email: string; role: string }[];
-  grants: { project: string; stages: string[] }[];
-}
-
-export const listTeams = () => request<{ teams: TeamSummary[] }>("/admin/teams");
-export const createTeam = (team: string) => request<{ team: string }>("/admin/teams", { body: { team } });
-export const teamDetail = (team: string) => request<TeamDetail>(`/admin/teams/${team}`);
-export const addTeamMember = (team: string, email: string) =>
-  request<{ ok: true }>(`/admin/teams/${team}/members`, { body: { email } });
-export const removeTeamMember = (team: string, email: string) =>
-  request<{ ok: true }>(`/admin/teams/${team}/members/remove`, { body: { email } });

@@ -6,8 +6,6 @@ import LoginPage from "./pages/LoginPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectPage from "./pages/ProjectPage";
 import ProjectSettingsPage from "./pages/ProjectSettingsPage";
-import TeamsPage from "./pages/TeamsPage";
-import TeamPage from "./pages/TeamPage";
 
 export default function App() {
   const { session, logout } = useAuth();
@@ -32,11 +30,6 @@ export default function App() {
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
             Projects
           </NavLink>
-          {flags.teams && (
-            <NavLink to="/teams" className={({ isActive }) => (isActive ? "active" : "")}>
-              Teams
-            </NavLink>
-          )}
         </nav>
         <div className="who">
           <span>{session.email}</span>
@@ -49,8 +42,6 @@ export default function App() {
         <Route path="/" element={<ProjectsPage />} />
         <Route path="/projects/:project" element={<ProjectPage />} />
         <Route path="/projects/:project/settings" element={<ProjectSettingsPage />} />
-        {flags.teams && <Route path="/teams" element={<TeamsPage />} />}
-        {flags.teams && <Route path="/teams/:team" element={<TeamPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

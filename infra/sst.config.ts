@@ -24,21 +24,15 @@ const stages = ["dev", "staging", "prod", "personal"];
 // projects). Everyone else must be invited to a project or team first.
 const adminEmails = ["info@sp33c.tech"];
 
-// Edition: "opensource" is the core (projects, encrypted upload/view, CLI);
-// "enterprise" adds team management. Editions are presets over the feature
-// toggles below — individual flags can still be overridden after the spread.
-const edition: "opensource" | "enterprise" = "enterprise";
-
-const editionFeatures = {
-  opensource: { landing: true, teams: false, fileDelete: true },
-  enterprise: { landing: true, teams: true, fileDelete: true },
-} as const;
+// This is the open-source edition. Team management (teams, team grants)
+// ships in the enterprise edition, maintained in a separate repository.
+const edition = "opensource";
 
 // Feature toggles. Enforced in the Lambdas (functions/lib/features.ts) and
 // baked into the web build — flip here, `sst deploy` to apply.
 const features: Record<string, boolean> = {
-  ...editionFeatures[edition],
-  // per-flag overrides go here, e.g. `fileDelete: false`
+  landing: true, // public landing page at "/" (off => straight to login)
+  fileDelete: true, // presign delete op + delete buttons in the UI
 };
 
 export default $config({

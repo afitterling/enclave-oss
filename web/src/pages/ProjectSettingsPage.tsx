@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../lib/api";
-import { flags } from "../lib/flags";
 import { useAuth } from "../state/auth";
 
 const ALL_STAGES = ["dev", "staging", "prod", "personal"];
@@ -34,8 +33,6 @@ export default function ProjectSettingsPage() {
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStages, setInviteStages] = useState<string[]>(["dev"]);
-  const [grantTeamName, setGrantTeamName] = useState("");
-  const [grantStages, setGrantStages] = useState<string[]>(["dev"]);
   const [busy, setBusy] = useState(false);
 
   const isOwner = detail?.owner === session?.email;
@@ -73,14 +70,6 @@ export default function ProjectSettingsPage() {
     });
   }
 
-  function grant(e: FormEvent) {
-    e.preventDefault();
-    void run(async () => {
-      await api.grantTeam(project, grantTeamName.trim(), grantStages);
-      setGrantTeamName("");
-    });
-  }
-
   return (
     <div className="fade-in">
       <p className="kicker">
@@ -88,7 +77,7 @@ export default function ProjectSettingsPage() {
           ← {project}
         </Link>
       </p>
-      <h1>Members &amp; teams</h1>
+      <h1>Members</h1>
       <p className="sub">
         Inviting an email is what lets that address log in — access is invite-only. Members
         see only the stages you grant.
@@ -152,66 +141,6 @@ export default function ProjectSettingsPage() {
             )}
           </div>
 
-          {flags.teams && (
-          <div className="panel">
-            <div className="panel-head">
-              <h2>Team grants</h2>
-            </div>
-            {detail.teams.length === 0 ? (
-              <p className="empty">No teams have access to this project.</p>
-            ) : (
-              <ul className="list">
-                {detail.teams.map((t) => (
-                  <li key={t.team}>
-                    <div className="grow">
-                      <Link className="plain" to={`/teams/${t.team}`}>
-                        {t.team}
-                      </Link>
-                    </div>
-                    {t.stages.map((s) => (
-                      <span key={s} className="tag">
-                        {s}
-                      </span>
-                    ))}
-                    {isOwner && (
-                      <button
-                        className="btn quiet danger"
-                        disabled={busy}
-                        onClick={() => void run(() => api.revokeTeam(project, t.team))}
-                      >
-                        revoke
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {isOwner && (
-              <div className="panel-body" style={{ borderTop: "1px solid var(--line)" }}>
-                <form onSubmit={grant}>
-                  <div className="row">
-                    <label className="field">
-                      <span>grant a team</span>
-                      <input
-                        type="text"
-                        value={grantTeamName}
-                        onChange={(e) => setGrantTeamName(e.target.value)}
-                        placeholder="team name"
-                        pattern="[\w.@+-]+"
-                      />
-                    </label>
-                    <button className="btn" disabled={busy || !grantTeamName.trim() || grantStages.length === 0}>
-                      grant
-                    </button>
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <StagePicker value={grantStages} onChange={setGrantStages} />
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-          )}
         </>
       )}
     </div>

@@ -1,6 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { featureEnabled } from "./features.js";
 
 /**
  * Dynamic access map backed by DynamoDB (ACCESS_TABLE), replacing the old
@@ -42,11 +41,6 @@ export function validStages(): string[] {
 
 interface MemberItem {
   role?: "owner" | "member";
-  stages?: string[];
-}
-
-interface GrantItem {
-  sk: string; // TEAM#<t>
   stages?: string[];
 }
 
@@ -95,34 +89,13 @@ export async function permissionsFor(email: string): Promise<Record<string, stri
     }),
   );
 
-  const teamIds: string[] = [];
   for (const item of mine.Items ?? []) {
     const target = item.gsi1sk as string;
+    // Team memberships (TEAM#…) are an enterprise-edition concept; any such
+    // items in the table are ignored here.
     if (target.startsWith("PROJECT#")) {
       const project = target.slice("PROJECT#".length);
       add(project, item.role === "owner" ? stages : ((item.stages as string[]) ?? []));
-    } else if (target.startsWith("TEAM#")) {
-      teamIds.push(target.slice("TEAM#".length));
-    }
-  }
-
-  // Grants held by each team the user belongs to (enterprise feature —
-  // disabled teams grant nothing, even if grant items exist in the table).
-  if (!featureEnabled("teams")) return finish();
-  for (const team of teamIds) {
-    const grants = await ddb.send(
-      new QueryCommand({
-        TableName: table(),
-        IndexName: "gsi1",
-        KeyConditionExpression: "gsi1pk = :t",
-        ExpressionAttributeValues: { ":t": `TEAM#${team}` },
-      }),
-    );
-    for (const g of grants.Items ?? []) {
-      const target = g.gsi1sk as string;
-      if (target.startsWith("PROJECT#")) {
-        add(target.slice("PROJECT#".length), (g.stages as string[]) ?? []);
-      }
     }
   }
 
@@ -150,27 +123,6 @@ export async function canAccess(email: string, project: string, stage: string): 
   if (member) {
     if (member.role === "owner") return true;
     if (Array.isArray(member.stages) && member.stages.includes(stage)) return true;
-  }
-
-  // Team path (enterprise feature): grants on this project whose stages
-  // include `stage`, where the user is a member of the granted team.
-  if (!featureEnabled("teams")) return false;
-  const grants = await ddb.send(
-    new QueryCommand({
-      TableName: table(),
-      KeyConditionExpression: "pk = :p AND begins_with(sk, :t)",
-      ExpressionAttributeValues: { ":p": `PROJECT#${project}`, ":t": "TEAM#" },
-    }),
-  );
-  for (const g of (grants.Items ?? []) as GrantItem[]) {
-    if (!Array.isArray(g.stages) || !g.stages.includes(stage)) continue;
-    const membership = await ddb.send(
-      new GetCommand({
-        TableName: table(),
-        Key: { pk: g.sk, sk: `MEMBER#${e}` },
-      }),
-    );
-    if (membership.Item) return true;
   }
   return false;
 }

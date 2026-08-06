@@ -5,11 +5,10 @@
 
 export interface Flags {
   landing: boolean;
-  teams: boolean;
   fileDelete: boolean;
 }
 
-const defaults: Flags = { landing: true, teams: true, fileDelete: true };
+const defaults: Flags = { landing: true, fileDelete: true };
 
 function parse(raw: string | undefined | null): Partial<Flags> {
   try {
@@ -26,4 +25,4 @@ export const flags: Flags = {
 };
 
 export const edition: "opensource" | "enterprise" =
-  (import.meta.env.VITE_EDITION as "opensource" | "enterprise" | undefined) ?? "enterprise";
+  (import.meta.env.VITE_EDITION as "opensource" | "enterprise" | undefined) ?? "opensource";
