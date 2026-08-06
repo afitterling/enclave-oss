@@ -3,6 +3,10 @@ infra/node_modules/
 infra/.sst/
 infra/sst-env.d.ts
 
+# web
+web/node_modules/
+web/dist/
+
 # python
 cli/build/
 cli/*.egg-info/

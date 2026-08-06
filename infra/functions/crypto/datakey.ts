@@ -37,7 +37,7 @@ export async function handler(event: APIGatewayProxyEventV2) {
 
   const { op, project, stage, ciphertext } = parseBody<Body>(event);
   if (!op || !project || !stage) return badRequest("op, project and stage are required");
-  if (!canAccess(email, project, stage)) return forbidden("no access to this project/stage");
+  if (!(await canAccess(email, project, stage))) return forbidden("no access to this project/stage");
 
   const encryptionContext = { project, stage, app: "enclave-envoy" };
 

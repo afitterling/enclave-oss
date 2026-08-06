@@ -7,7 +7,8 @@
  *   - KMS master key (envelope-encryption root; never leaves KMS)
  *   - S3 bucket (project-id/stage-name/file) with a per-stage bucket policy
  *   - DynamoDB table for one-time login codes (TTL-expired)
- *   - One IAM role per stage; the bucket policy scopes each role to `*/<stage>/*`
+ *   - One IAM role per stage; the bucket policy scopes each role to its stage's
+ *     `<project>/<stage>/<file>` keys
  *   - HTTP API + Lambda functions: auth/request, auth/verify, access/whoami,
  *     crypto/datakey, s3/presign
  *
@@ -15,9 +16,13 @@
  * Lambda that re-validates the caller's JWT and the users.yaml map on each call.
  */
 
-// The complete set of valid stages. MUST stay in sync with ../users.yaml.
-// Each stage gets its own IAM role + bucket-policy statement.
+// The complete set of valid stages. Each stage gets its own IAM role +
+// bucket-policy statement; the AccessTable only grants stages from this list.
 const stages = ["dev", "staging", "prod", "personal"];
+
+// Bootstrap admins: these emails can always log in (and create the first
+// projects). Everyone else must be invited to a project or team first.
+const adminEmails = ["info@sp33c.tech"];
 
 export default $config({
   app(input) {
@@ -62,9 +67,13 @@ export default $config({
       ttl: "expiresAt", // epoch seconds; DynamoDB auto-deletes expired codes
     });
 
-    // ---- S3 bucket --------------------------------------------------------
-    const bucket = new sst.aws.Bucket("VaultBucket", {
-      enforceHttps: true, // adds a deny-non-TLS statement
+    // ---- DynamoDB: dynamic access map (projects, teams, memberships) ------
+    // Replaces the old static users.yaml. Holds only access metadata — file
+    // contents stay client-side-encrypted in S3.
+    const accessTable = new sst.aws.Dynamo("AccessTable", {
+      fields: { pk: "string", sk: "string", gsi1pk: "string", gsi1sk: "string" },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      globalIndexes: { gsi1: { hashKey: "gsi1pk", rangeKey: "gsi1sk" } },
     });
 
     // ---- Per-stage IAM roles ---------------------------------------------
@@ -89,31 +98,44 @@ export default $config({
       return { stage, role };
     });
 
-    // ---- Bucket policy: scope each stage role to `*/<stage>/*` ------------
-    new aws.s3.BucketPolicy("VaultBucketPolicy", {
-      bucket: bucket.name,
-      policy: $jsonStringify({
-        Version: "2012-10-17",
-        Statement: [
-          // Object-level access, one statement per stage role.
-          ...stageRoles.map(({ stage, role }) => ({
-            Sid: `Stage_${stage}_objects`,
-            Effect: "Allow",
-            Principal: { AWS: role.arn },
-            Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-            Resource: $interpolate`${bucket.arn}/*/${stage}/*`,
-          })),
-          // Listing: every stage role may List the bucket (objects stay encrypted),
-          // but the CLI only ever lists under its own project/stage prefix anyway.
-          {
-            Sid: "StageRolesList",
-            Effect: "Allow",
-            Principal: { AWS: stageRoles.map((s) => s.role.arn) },
-            Action: ["s3:ListBucket"],
-            Resource: bucket.arn,
-          },
-        ],
-      }),
+    // ---- S3 bucket --------------------------------------------------------
+    // S3 allows exactly one bucket policy, and enforceHttps makes SST manage
+    // it — so the per-stage statements are merged into that same policy via
+    // transform.policy instead of a standalone aws.s3.BucketPolicy resource.
+    const bucket = new sst.aws.Bucket("VaultBucket", {
+      enforceHttps: true, // adds a deny-non-TLS statement
+      // Browser clients hit presigned URLs directly; without CORS every
+      // cross-origin PUT/GET/DELETE fails preflight (the CLI is unaffected).
+      cors: {
+        allowMethods: ["GET", "PUT", "DELETE"],
+        allowOrigins: ["*"],
+        allowHeaders: ["*"],
+      },
+      transform: {
+        policy: (args) => {
+          args.policy = sst.aws.iamEdit(args.policy, (policy) => {
+            for (const { stage, role } of stageRoles) {
+              // Object-level access, scoped to this stage's prefix.
+              policy.Statement.push({
+                Sid: `Stage_${stage}_objects`,
+                Effect: "Allow",
+                Principal: { AWS: role.arn },
+                Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+                Resource: $interpolate`arn:aws:s3:::${args.bucket}/*/${stage}/*`,
+              });
+              // Listing: stage roles may List the bucket (objects stay
+              // encrypted); the clients only list their own prefix anyway.
+              policy.Statement.push({
+                Sid: `Stage_${stage}_list`,
+                Effect: "Allow",
+                Principal: { AWS: role.arn },
+                Action: ["s3:ListBucket"],
+                Resource: $interpolate`arn:aws:s3:::${args.bucket}`,
+              });
+            }
+          });
+        },
+      },
     });
 
     const stageRoleArns = $jsonStringify(
@@ -122,7 +144,11 @@ export default $config({
 
     // ---- HTTP API + functions --------------------------------------------
     const api = new sst.aws.ApiGatewayV2("Api", {
-      cors: { allowOrigins: ["*"], allowMethods: ["GET", "POST"] },
+      cors: {
+        allowOrigins: ["*"],
+        allowMethods: ["GET", "POST"],
+        allowHeaders: ["authorization", "content-type"],
+      },
     });
 
     // Shared environment for JWT-verifying endpoints.
@@ -130,16 +156,25 @@ export default $config({
       ENCLAVE_REGION: region.name,
       JWT_SIGNING_KEY: jwtKey.value,
       STAGES: JSON.stringify(stages),
+      ACCESS_TABLE: accessTable.name,
     };
 
-    // users.yaml is bundled into every access-checking function.
-    const copyUsers = [{ from: "../users.yaml", to: "users.yaml" }];
+    // Read-only access-map lookups (canAccess / permissionsFor / isKnownUser).
+    const accessRead = {
+      actions: ["dynamodb:GetItem", "dynamodb:Query"],
+      resources: [accessTable.arn, $interpolate`${accessTable.arn}/index/*`],
+    };
 
     api.route("POST /auth/request", {
       handler: "functions/auth/request.handler",
-      environment: { ...baseEnv, OTP_TABLE: otpTable.name, SES_SENDER: sesSender.value },
-      copyFiles: copyUsers,
+      environment: {
+        ...baseEnv,
+        OTP_TABLE: otpTable.name,
+        SES_SENDER: sesSender.value,
+        ADMIN_EMAILS: adminEmails.join(","),
+      },
       permissions: [
+        accessRead,
         { actions: ["dynamodb:PutItem"], resources: [otpTable.arn] },
         { actions: ["ses:SendEmail"], resources: ["*"] },
       ],
@@ -148,8 +183,8 @@ export default $config({
     api.route("POST /auth/verify", {
       handler: "functions/auth/verify.handler",
       environment: { ...baseEnv, OTP_TABLE: otpTable.name },
-      copyFiles: copyUsers,
       permissions: [
+        accessRead,
         {
           actions: ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"],
           resources: [otpTable.arn],
@@ -160,14 +195,14 @@ export default $config({
     api.route("GET /access/whoami", {
       handler: "functions/access/whoami.handler",
       environment: baseEnv,
-      copyFiles: copyUsers,
+      permissions: [accessRead],
     });
 
     api.route("POST /crypto/datakey", {
       handler: "functions/crypto/datakey.handler",
       environment: { ...baseEnv, KMS_KEY_ID: key.keyId },
-      copyFiles: copyUsers,
       permissions: [
+        accessRead,
         { actions: ["kms:GenerateDataKey", "kms:Decrypt"], resources: [key.arn] },
       ],
     });
@@ -175,8 +210,8 @@ export default $config({
     api.route("POST /s3/presign", {
       handler: "functions/s3/presign.handler",
       environment: { ...baseEnv, BUCKET: bucket.name, STAGE_ROLE_ARNS: stageRoleArns },
-      copyFiles: copyUsers,
       permissions: [
+        accessRead,
         {
           actions: ["sts:AssumeRole"],
           resources: stageRoles.map((s) => s.role.arn),
@@ -184,8 +219,37 @@ export default $config({
       ],
     });
 
+    // Project/team administration (create, members, grants).
+    const adminDef = {
+      handler: "functions/admin/handler.handler",
+      environment: baseEnv,
+      permissions: [
+        {
+          actions: [
+            "dynamodb:GetItem",
+            "dynamodb:Query",
+            "dynamodb:PutItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:TransactWriteItems",
+          ],
+          resources: [accessTable.arn, $interpolate`${accessTable.arn}/index/*`],
+        },
+      ],
+    };
+    api.route("GET /admin/{proxy+}", adminDef);
+    api.route("POST /admin/{proxy+}", adminDef);
+
+    // ---- Web frontend (static SPA; VITE_API_URL baked at build time) ------
+    const site = new sst.aws.StaticSite("Web", {
+      path: "../web",
+      build: { command: "npm run build", output: "dist" },
+      environment: { VITE_API_URL: api.url },
+    });
+
     return {
       ApiUrl: api.url,
+      SiteUrl: site.url,
       Bucket: bucket.name,
       KmsKeyId: key.keyId,
     };

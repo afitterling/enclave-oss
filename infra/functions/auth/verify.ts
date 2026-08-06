@@ -56,5 +56,5 @@ export async function handler(event: APIGatewayProxyEventV2) {
   );
 
   const token = issue(normalized, process.env.JWT_SIGNING_KEY!);
-  return ok({ token, email: normalized, access: permissionsFor(normalized) });
+  return ok({ token, email: normalized, access: await permissionsFor(normalized) });
 }

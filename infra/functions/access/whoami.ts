@@ -11,5 +11,5 @@ export async function handler(event: APIGatewayProxyEventV2) {
   } catch {
     return unauthorized();
   }
-  return ok({ email: claims.sub, access: permissionsFor(claims.sub) });
+  return ok({ email: claims.sub, access: await permissionsFor(claims.sub) });
 }

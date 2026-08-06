@@ -1,0 +1,46 @@
+import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "./state/auth";
+import LoginPage from "./pages/LoginPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectPage from "./pages/ProjectPage";
+import ProjectSettingsPage from "./pages/ProjectSettingsPage";
+import TeamsPage from "./pages/TeamsPage";
+import TeamPage from "./pages/TeamPage";
+
+export default function App() {
+  const { session, logout } = useAuth();
+
+  if (!session) return <LoginPage />;
+
+  return (
+    <div className="shell">
+      <header className="topbar">
+        <Link to="/" className="brand">
+          enclave<b>-envoy</b>
+        </Link>
+        <nav>
+          <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
+            Projects
+          </NavLink>
+          <NavLink to="/teams" className={({ isActive }) => (isActive ? "active" : "")}>
+            Teams
+          </NavLink>
+        </nav>
+        <div className="who">
+          <span>{session.email}</span>
+          <button className="btn quiet" onClick={logout}>
+            log out
+          </button>
+        </div>
+      </header>
+      <Routes>
+        <Route path="/" element={<ProjectsPage />} />
+        <Route path="/projects/:project" element={<ProjectPage />} />
+        <Route path="/projects/:project/settings" element={<ProjectSettingsPage />} />
+        <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/teams/:team" element={<TeamPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   PutObjectCommand,
+  DeleteObjectCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -11,19 +12,20 @@ import { requireAuth } from "../lib/jwt.js";
 import { ok, badRequest, unauthorized, forbidden, parseBody } from "../lib/response.js";
 
 /**
- * Brokers S3 access for the CLI. Validates the user against users.yaml, assumes
- * the per-stage role (whose permissions the bucket policy scopes to `*/<stage>/*`),
- * and returns a short-lived presigned URL. Enforces the `project-id/stage/file`
- * key layout server-side.
+ * Brokers S3 access for the CLI and web UI. Validates the user against the
+ * DynamoDB access map, assumes the per-stage role (whose permissions the bucket
+ * policy scopes to this stage's `<project>/<stage>/<file>` keys), and returns a
+ * short-lived presigned URL. Enforces the `project-id/stage/file` key layout
+ * server-side.
  */
 
 const PRESIGN_TTL = 300; // seconds
 
 interface Body {
-  op?: "upload" | "download" | "list";
+  op?: "upload" | "download" | "delete" | "list";
   project?: string;
   stage?: string;
-  file?: string; // basename; required for upload/download
+  file?: string; // basename; required for upload/download/delete
 }
 
 // Disallow path traversal / nested prefixes in the filename component.
@@ -40,7 +42,7 @@ export async function handler(event: APIGatewayProxyEventV2) {
   const { op, project, stage, file } = parseBody<Body>(event);
   if (!op || !project || !stage) return badRequest("op, project and stage are required");
   if (!safeName(project) || !safeName(stage)) return badRequest("invalid project/stage");
-  if (!canAccess(email, project, stage)) return forbidden("no access to this project/stage");
+  if (!(await canAccess(email, project, stage))) return forbidden("no access to this project/stage");
 
   const bucket = process.env.BUCKET!;
   const prefix = `${project}/${stage}/`;
@@ -71,5 +73,12 @@ export async function handler(event: APIGatewayProxyEventV2) {
     return ok({ url, method: "GET", key: Key, expiresIn: PRESIGN_TTL });
   }
 
-  return badRequest("op must be 'upload', 'download' or 'list'");
+  if (op === "delete") {
+    const url = await getSignedUrl(s3, new DeleteObjectCommand({ Bucket: bucket, Key }), {
+      expiresIn: PRESIGN_TTL,
+    });
+    return ok({ url, method: "DELETE", key: Key, expiresIn: PRESIGN_TTL });
+  }
+
+  return badRequest("op must be 'upload', 'download', 'delete' or 'list'");
 }

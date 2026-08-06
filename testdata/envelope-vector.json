@@ -1,0 +1,7 @@
+{
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "nonce_hex": "6465666768696a6b6c6d6e6f",
+  "wrapped_b64": "q6urq6sAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYn",
+  "plaintext_utf8": "DATABASE_URL=postgres://user:pass@host:5432/db\n# comment\nAPI_KEY='sk-123'\n",
+  "envelope_b64": "RU5WMQAtq6urq6sAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnZGVmZ2hpamtsbW5vDFqKJzuoBdthNw2k5xUFjjaldG/4Vtxd0qLJOsHTxDvnqSivP2ahMcnAShCZIMDsOzj3ik0vL1zwsPyfsMrg0zWrqGX7egk2rGXiudhu/JQNSm1WXxut7Isq"
+}
