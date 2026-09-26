@@ -5,7 +5,7 @@
  * Unknown/missing flags fail closed.
  */
 
-export type FeatureName = "landing" | "fileDelete";
+export type FeatureName = "landing" | "fileDelete" | "signup";
 
 export function featureEnabled(name: FeatureName): boolean {
   try {

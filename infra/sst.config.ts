@@ -20,8 +20,8 @@
 // bucket-policy statement; the AccessTable only grants stages from this list.
 const stages = ["dev", "staging", "prod", "personal"];
 
-// Bootstrap admins: these emails can always log in (and create the first
-// projects). Everyone else must be invited to a project or team first.
+// Bootstrap admins: these emails can always log in. Everyone else either
+// signs up (when `features.signup` is on) or is invited to a project first.
 const adminEmails = ["info@sp33c.tech"];
 
 // The verified SES identity OTP mail is sent from. Used to scope the
@@ -81,6 +81,7 @@ const edition = "opensource";
 const features: Record<string, boolean> = {
   landing: true, // public landing page at "/" (off => straight to login)
   fileDelete: true, // presign delete op + delete buttons in the UI
+  signup: true, // self-service signup (off => invite-only login)
 };
 
 export default $config({
@@ -292,6 +293,8 @@ export default $config({
       environment: { ...baseEnv, OTP_TABLE: otpTable.name },
       permissions: [
         accessRead,
+        // Signup registers the address (USER#<email> / PROFILE) once verified.
+        { actions: ["dynamodb:PutItem"], resources: [accessTable.arn] },
         {
           actions: ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"],
           resources: [otpTable.arn],
