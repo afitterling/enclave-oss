@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../lib/api";
+import { flags } from "../lib/flags";
 import { useAuth } from "../state/auth";
+import MachinePanel from "../components/MachinePanel";
 
 const ALL_STAGES = ["dev", "staging", "prod", "personal"];
 
@@ -141,6 +143,17 @@ export default function ProjectSettingsPage() {
             )}
           </div>
 
+          {flags.machineIdentities && (
+            <MachinePanel
+              project={project}
+              machines={detail.machines ?? []}
+              stages={ALL_STAGES}
+              isOwner={isOwner}
+              busy={busy}
+              run={(fn) => void run(fn)}
+              StagePicker={StagePicker}
+            />
+          )}
         </>
       )}
     </div>

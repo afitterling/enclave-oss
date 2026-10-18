@@ -7,9 +7,10 @@ export interface Flags {
   landing: boolean;
   fileDelete: boolean;
   signup: boolean;
+  machineIdentities: boolean;
 }
 
-const defaults: Flags = { landing: true, fileDelete: true, signup: false };
+const defaults: Flags = { landing: true, fileDelete: true, signup: false, machineIdentities: false };
 
 function parse(raw: string | undefined | null): Partial<Flags> {
   try {

@@ -93,10 +93,26 @@ export interface ProjectSummary {
   owner: string | null;
 }
 
+export interface MachineBinding {
+  id: string;
+  kind: "oidc" | "aws";
+  issuer?: string;
+  audience?: string;
+  claims?: Record<string, string>;
+  account?: string;
+  role?: string;
+  stages: string[];
+  access: "read" | "write";
+  description?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
 export interface ProjectDetail {
   project: string;
   owner: string;
   members: { email: string; role: string; stages: string[] }[];
+  machines?: MachineBinding[];
 }
 
 export const listProjects = () => request<{ projects: ProjectSummary[] }>("/admin/projects");
@@ -107,3 +123,12 @@ export const addProjectMember = (project: string, email: string, stages: string[
   request<{ ok: true }>(`/admin/projects/${project}/members`, { body: { email, stages } });
 export const removeProjectMember = (project: string, email: string) =>
   request<{ ok: true }>(`/admin/projects/${project}/members/remove`, { body: { email } });
+
+// ---- admin: machine identities ---------------------------------------------
+
+export const workloadInfo = () =>
+  request<{ audience: string; serverIdHeader: string }>("/auth/workload", { auth: false });
+export const upsertMachine = (project: string, binding: Omit<MachineBinding, "createdBy" | "createdAt">) =>
+  request<{ ok: true; id: string }>(`/admin/projects/${project}/machines`, { body: binding });
+export const removeMachine = (project: string, id: string) =>
+  request<{ ok: true }>(`/admin/projects/${project}/machines/remove`, { body: { id } });

@@ -9,6 +9,8 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { normalizeEmail, validStages } from "../lib/access.js";
+import { featureEnabled } from "../lib/features.js";
+import { newRev, toBinding, validateBinding } from "../lib/machines.js";
 import { requireAuth } from "../lib/jwt.js";
 import { ok, badRequest, unauthorized, forbidden, json, parseBody } from "../lib/response.js";
 import { edgeRejection } from "../lib/edge.js";
@@ -21,7 +23,11 @@ import { edgeRejection } from "../lib/edge.js";
  *   GET  /admin/projects/{p}                      detail (members only)
  *   POST /admin/projects/{p}/members              { email, stages }      owner only (upsert)
  *   POST /admin/projects/{p}/members/remove       { email }              owner only
+ *   POST /admin/projects/{p}/machines             binding (lib/machines) owner only (upsert)
+ *   POST /admin/projects/{p}/machines/remove      { id }                 owner only
  *
+ * Machine identities are listed in the project detail, gated on the
+ * `machineIdentities` feature.
  * Team management ships in the enterprise edition.
  * Mutations are POST-only so the API-GW CORS surface stays GET/POST.
  * Ids share the S3-safe regex with presign. Stage lists are validated
@@ -158,7 +164,13 @@ async function projectDetail(email: string, project: string) {
     role: m.role as string,
     stages: m.role === "owner" ? validStages() : ((m.stages as string[]) ?? []),
   }));
-  return ok({ project, owner: meta.owner as string, members });
+  const machines = featureEnabled("machineIdentities")
+    ? (await queryPrefix(`PROJECT#${project}`, "MACHINE#")).map((item) => {
+        const { rev: _rev, ...binding } = toBinding(item);
+        return binding;
+      })
+    : [];
+  return ok({ project, owner: meta.owner as string, members, machines });
 }
 
 async function requireOwner(pk: string, email: string) {
@@ -212,6 +224,45 @@ async function removeProjectMember(email: string, project: string, body: Record<
   return ok({ ok: true });
 }
 
+// ---- machine identities ----------------------------------------------------
+
+async function upsertMachine(email: string, project: string, body: Record<string, unknown>) {
+  if (!featureEnabled("machineIdentities")) return forbidden("machine identities are not enabled");
+  const denied = await requireOwner(`PROJECT#${project}`, email);
+  if (denied) return denied;
+  const result = validateBinding(body);
+  if (!result.ok) return badRequest(result.error);
+  const { id, ...rest } = result.binding;
+  // A fresh rev on every write: tokens minted under the previous rules stop
+  // working immediately (access.authorize compares it).
+  await ddb.send(
+    new PutCommand({
+      TableName: TABLE(),
+      Item: {
+        pk: `PROJECT#${project}`,
+        sk: `MACHINE#${id}`,
+        ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
+        rev: newRev(),
+        createdBy: email,
+        createdAt: new Date().toISOString(),
+      },
+    }),
+  );
+  return ok({ ok: true, id });
+}
+
+async function removeMachine(email: string, project: string, body: Record<string, unknown>) {
+  if (!featureEnabled("machineIdentities")) return forbidden("machine identities are not enabled");
+  const denied = await requireOwner(`PROJECT#${project}`, email);
+  if (denied) return denied;
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id || !safeName(id)) return badRequest("id is required");
+  await ddb.send(
+    new DeleteCommand({ TableName: TABLE(), Key: { pk: `PROJECT#${project}`, sk: `MACHINE#${id}` } }),
+  );
+  return ok({ ok: true });
+}
+
 // ---- router ----------------------------------------------------------------
 
 export async function handler(event: APIGatewayProxyEventV2) {
@@ -241,6 +292,8 @@ export async function handler(event: APIGatewayProxyEventV2) {
     if (method !== "POST") return badRequest("unknown route");
     if (sub === "members" && !action) return upsertProjectMember(email, id, body);
     if (sub === "members" && action === "remove") return removeProjectMember(email, id, body);
+    if (sub === "machines" && !action) return upsertMachine(email, id, body);
+    if (sub === "machines" && action === "remove") return removeMachine(email, id, body);
     return badRequest("unknown route");
   }
 

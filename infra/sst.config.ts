@@ -82,6 +82,7 @@ const features: Record<string, boolean> = {
   landing: true, // public landing page at "/" (off => straight to login)
   fileDelete: true, // presign delete op + delete buttons in the UI
   signup: true, // self-service signup (off => invite-only login)
+  machineIdentities: true, // CI/workload login via OIDC or AWS IAM (functions/auth/workload.ts)
 };
 
 export default $config({
@@ -105,6 +106,14 @@ export default $config({
     const origins = allowedOrigins($app.stage);
     const siteDomain = siteDomains[$app.stage];
     const isProduction = $app.stage === "production";
+
+    // What workload tokens must be minted for: the `aud` of an OIDC token and
+    // the signed x-enclave-server-id header of an AWS STS request. Unique per
+    // deployment, so a token or signed request made for one enclave deployment
+    // cannot be replayed against another. Printed as WorkloadAudience.
+    const workloadAudience = siteDomain
+      ? `https://${siteDomain}`
+      : `enclave-envoy:${accountId}:${$app.stage}`;
 
     // Address that one-time-code emails are sent FROM. Must be a verified SES
     // identity in this account/region. Set via: `npx sst secret set SesSender ...`
@@ -302,6 +311,17 @@ export default $config({
       ],
     });
 
+    // Workload (machine identity) login. No AWS permissions of its own beyond
+    // reading bindings: OIDC keys are fetched over https, and a signed STS
+    // request is verified by STS on the workload's own credentials.
+    const workloadDef = {
+      handler: "functions/auth/workload.handler",
+      environment: { ...baseEnv, WORKLOAD_AUDIENCE: workloadAudience },
+      permissions: [accessRead],
+    };
+    api.route("GET /api/auth/workload", workloadDef);
+    api.route("POST /api/auth/workload", workloadDef);
+
     api.route("GET /api/access/whoami", {
       handler: "functions/access/whoami.handler",
       environment: baseEnv,
@@ -462,6 +482,7 @@ export default $config({
       ApiUrl: $interpolate`${site.url}/api`,
       ApiOriginUrl: api.url,
       SiteUrl: site.url,
+      WorkloadAudience: workloadAudience,
       Bucket: bucket.name,
       KmsKeyId: key.keyId,
     };
